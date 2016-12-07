@@ -19,7 +19,8 @@ LONG_SLEEPY_TIME = 5   #五秒钟睡眠
 
 class ContactsAndroidTests(unittest.TestCase):
 
-#配置
+    #配置
+
     def setUp(self):
         desired_caps = {}
         desired_caps['platformName'] = 'Android'
@@ -34,18 +35,57 @@ class ContactsAndroidTests(unittest.TestCase):
         desired_caps["resetKeyboard"] = "True"
         self.driver = webdriver.Remote('http://localhost:4723/wd/hub', desired_caps)
 
-#程序结束的地方
+    #程序结束的地方
+
     def tearDown(self):
         print("end")
         self.driver.quit()
 
 #pragma mark - 实际测试PASSAGE的过程
+
     def test_passage_scan(self):
 
         self.isLogin() #判断是否登录
+
         #登录后
         sleep(SHORT_SLEEPY_TIME)
 
+        self.chooseTemplate()  #选择一个book
+
+        self.judgeDownloadClass() #判断是否需要下载课件
+
+        sleep(SHORT_SLEEPY_TIME) #睡
+
+        self.swipeLeft(1000)  #左滑一下到选择班级界面
+
+        sleep(SHORT_SLEEPY_TIME) #睡
+
+        self.chooseClass() #选择班级
+
+        self.scrollImagePage() #滑动课件
+
+        self.quitBook() #退出书籍
+
+
+#pragma mark - 重写driver方法
+
+    def find_element_by_id(self, eid):
+        try:
+            return self.driver.find_element_by_id(eid)
+        except NoSuchElementException:
+            return None
+
+    def find_element_by_class_name(self, eclass):
+        try:
+            return self.driver.find_element_by_class_name(eclass)
+        except NoSuchElementException:
+            return None
+
+#pragma mark - 通用方法
+
+    #选择一个book,以后可改为选择某一个模板
+
+    def chooseTemplate(self):
         #进入PASSAGE,点击PASSAGE
         el = self.driver.find_elements_by_class_name("android.widget.ImageView")
 
@@ -61,6 +101,10 @@ class ContactsAndroidTests(unittest.TestCase):
         el.click()
         sleep(SHORT_SLEEPY_TIME)
 
+
+    #判断是否需要下载课件
+
+    def judgeDownloadClass(self):
         #判断是否有进度条
         el = None
         try:
@@ -70,54 +114,38 @@ class ContactsAndroidTests(unittest.TestCase):
         except Exception as e:
             sleep(SHORT_SLEEPY_TIME)
 
-        sleep(SHORT_SLEEPY_TIME)
-        #选择班级
-        self.swipeLeft(1000)
-        sleep(SHORT_SLEEPY_TIME)
+    #选择一个班级
 
+    def chooseClass(self):
         el = self.find_element_by_class_name("android.widget.ListView")
         el.click()
         sleep(SHORT_SLEEPY_TIME)
         #点击下一页
         el = self.find_element_by_id("com.boxfish.teacher:id/tv_next_pager")
         el.click()
-
         sleep(SHORT_SLEEPY_TIME)
 
-        #随机左滑右滑
-        #随机滑动X次
+    #随机左滑右滑，#随机滑动X次
+
+    def scrollImagePage(self):
+
         scrollRandomCount = random.randint(15,25) #随机滑动N次
 
         for i in range(1,scrollRandomCount):
             leftOrRightRandom = random.randint(1,5)
             #随机左滑右滑
             if leftOrRightRandom % 5 != 0 :
-                self.swipeLeft(1000)  ##左滑概率大
+                self.swipeLeft(1000)  #左滑概率大
             else:
-                self.swipeRight(1000) ##有滑概率小
+                self.swipeRight(1000) #右滑概率小
                 self.readAndRecite()#读
             sleep(MIDDLE_SLEEPY_TIME)
             #python的三目运算符和以前见的不一样啊~
             #self.swipeLeft(1000) if leftOrRightRandom % 3 != 0 else self.swipeRight(1000)
 
-        self.quitBook() #退出书籍
 
-
-#pragma mark - 重写driver方法
-    def find_element_by_id(self, eid):
-        try:
-            return self.driver.find_element_by_id(eid)
-        except NoSuchElementException:
-            return None
-
-    def find_element_by_class_name(self, eclass):
-        try:
-            return self.driver.find_element_by_class_name(eclass)
-        except NoSuchElementException:
-            return None
-
-#pragma mark - 通用方法
     #判断是否已登录
+
     def isLogin(self):
         el = None
         try:
@@ -143,6 +171,7 @@ class ContactsAndroidTests(unittest.TestCase):
             sleep(SHORT_SLEEPY_TIME)
 
     #把朗读背诵单独提取出来
+
     def readAndRecite(self):
         #点击activity按钮
         try:
@@ -190,6 +219,7 @@ class ContactsAndroidTests(unittest.TestCase):
         sleep(SHORT_SLEEPY_TIME)
 
     #退出课件浏览
+    
     def quitBook(self):
         #退出课件
         self.driver.press_keycode(4)
