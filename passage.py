@@ -20,7 +20,6 @@ LONG_SLEEPY_TIME = 5   #五秒钟睡眠
 class ContactsAndroidTests(unittest.TestCase):
 
     #配置
-
     def setUp(self):
         desired_caps = {}
         desired_caps['platformName'] = 'Android'
@@ -36,7 +35,6 @@ class ContactsAndroidTests(unittest.TestCase):
         self.driver = webdriver.Remote('http://localhost:4723/wd/hub', desired_caps)
 
     #程序结束的地方
-
     def tearDown(self):
         print("end")
         self.driver.quit()
@@ -84,7 +82,6 @@ class ContactsAndroidTests(unittest.TestCase):
 #pragma mark - 通用方法
 
     #选择一个book,以后可改为选择某一个模板
-
     def chooseTemplate(self):
         #进入PASSAGE,点击PASSAGE
         el = self.driver.find_elements_by_class_name("android.widget.ImageView")
@@ -103,7 +100,6 @@ class ContactsAndroidTests(unittest.TestCase):
 
 
     #判断是否需要下载课件
-
     def judgeDownloadClass(self):
         #判断是否有进度条
         el = None
@@ -115,7 +111,6 @@ class ContactsAndroidTests(unittest.TestCase):
             sleep(SHORT_SLEEPY_TIME)
 
     #选择一个班级
-
     def chooseClass(self):
         el = self.find_element_by_class_name("android.widget.ListView")
         el.click()
@@ -126,7 +121,6 @@ class ContactsAndroidTests(unittest.TestCase):
         sleep(SHORT_SLEEPY_TIME)
 
     #随机左滑右滑，#随机滑动X次
-
     def scrollImagePage(self):
 
         scrollRandomCount = random.randint(15,25) #随机滑动N次
@@ -145,7 +139,6 @@ class ContactsAndroidTests(unittest.TestCase):
 
 
     #判断是否已登录
-
     def isLogin(self):
         el = None
         try:
@@ -171,7 +164,6 @@ class ContactsAndroidTests(unittest.TestCase):
             sleep(SHORT_SLEEPY_TIME)
 
     #把朗读背诵单独提取出来
-
     def readAndRecite(self):
         #点击activity按钮
         try:
@@ -219,7 +211,6 @@ class ContactsAndroidTests(unittest.TestCase):
         sleep(SHORT_SLEEPY_TIME)
 
     #退出课件浏览
-    
     def quitBook(self):
         #退出课件
         self.driver.press_keycode(4)
