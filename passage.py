@@ -25,10 +25,16 @@ DOWNLOAD_SUCCESS = 0
 HORIZONTAL_COUNT = 0
 VERTICAL_COUNT = 0
 
-width = 342
-height = 456
-x = 75
-y = 348
+width = 456
+height = 608
+x = 85
+y = 479
+left_padding = 100
+
+FIRST_LEFT_SWIPE_IN_BOOKSHELF= 1
+
+HORIZONTAL_ARRAY  = []
+LAST_TITLE  = ''
 
 class ContactsAndroidTests(unittest.TestCase):
 
@@ -37,7 +43,7 @@ class ContactsAndroidTests(unittest.TestCase):
         desired_caps = {}
         desired_caps['platformName'] = 'Android'
         desired_caps['platformVersion'] = '4.4.2'
-        desired_caps['deviceName'] = 'Android Emulator'
+        desired_caps['deviceName'] = 'dd62c058'
         desired_caps['app'] = PATH(
             '../../../sample-code/apps/teacherbetatest-306-2.6.0-20160929.apk'
         )
@@ -63,19 +69,7 @@ class ContactsAndroidTests(unittest.TestCase):
 
         self.chooseTemplate()  #选择一个book
 
-        # self.judgeDownloadClass() #判断是否需要下载课件
-        #
-        # sleep(SHORT_SLEEPY_TIME) #睡
-        #
-        # self.swipeLeft(1000)  #左滑一下到选择班级界面
-        #
-        # sleep(MIDDLE_SLEEPY_TIME) #睡
-        #
-        # self.chooseClass() #选择班级
-        #
-        # self.scrollImagePage() #滑动课件
-        #
-        # self.quitBook() #退出书籍
+
 
 
 #pragma mark - 进入课件后的操作
@@ -133,58 +127,179 @@ class ContactsAndroidTests(unittest.TestCase):
                 self.driver.press_keycode(4)
                 sleep(SHORT_SLEEPY_TIME)
 
+    def bookshelfLeftSwipe(self):
+        global width
+        global y
+        global left_padding
+        global FIRST_LEFT_SWIPE_IN_BOOKSHELF
+        sleep(MIDDLE_SLEEPY_TIME)
+
+
+        cell_padding = self.find_elements_by_id("com.boxfish.teacher:id/iv_item_course_grid_cell") #书架上的书
+        left_padding = cell_padding[1].location.get('x') - cell_padding[0].location.get('x')
+        print '0000000'
+        print cell_padding[1].location.get('x')
+        print cell_padding[0].location.get('x')
+        print '0000000'
+        self.driver.drag_and_drop( cell_padding[1] , cell_padding[0]  )
+
+
+    def bookshelfUpSwipe(self):
+        global LAST_TITLE
+
+        global FIRST_LEFT_SWIPE_IN_BOOKSHELF
+        up_padding = self.getSize()[1] * 13 / 640  #会改成500+up_padding
+        self.driver.swipe(x,1190,x,500,1000)
+
+        print '上滑'
+        #记录下bottom tv_type_title
+        #判断是否竖直方向到头了
+        eles = self.find_elements_by_id("com.boxfish.teacher:id/tv_type_title")
+        if len(eles) > 0:
+            if LAST_TITLE != '': #如果数组大于0就比较下，如果数组为0，就直接append
+            #数组的最后一项，与获取的第一项比较
+                length = len(eles)
+                print LAST_TITLE + ' vs ' + eles[length-1].text
+                if LAST_TITLE == eles[length-1].text:
+                    #不再上滑
+                    LAST_TITLE = ''
+                    print '不再上滑，清空数组'
+                    return
+                else:
+                    LAST_TITLE = eles[len(eles)-1].text
+                    #self.tranverseBookTest()
+            else:
+                LAST_TITLE = eles[len(eles)-1].text
+
+                #self.tranverseBook()
+        else:
+            print '标题个数为0'
+            return
+        self.tranverseBookTest()
+
+    def tranverseBookTest(self):#遍历书籍列表,#已进入passage
+        global LAST_TITLE  #竖直方向最后一个标题
+        global FIRST_LEFT_SWIPE_IN_BOOKSHELF  #是否是第一次左滑
+        cell_el = self.find_elements_by_id("com.boxfish.teacher:id/iv_item_course_grid_cell") #书架上的书
+        sleep(SHORT_SLEEPY_TIME)
+        if len(cell_el) == 0:
+            return
+        cell_el[0].click()  #点击了中级听读
+        print '--点击了第'+ str(1) +'本书'
+        sleep(SHORT_SLEEPY_TIME)  #这个后面需要加点击ppt的处理
+        self.driver.press_keycode(4)
+        print '---返回到书架'
+
+        bookNum = 3
+        if len(cell_el) >= 3:
+            b = cell_el[2].location.get('y')
+            a = cell_el[1].location.get('y')
+            if b > a:
+                bookNum = 2
+                #两本书
+        if len(cell_el) ==2:
+            b = cell_el[1].location.get('y')
+            a = cell_el[0].location.get('y')
+            bookNum = 2
+            #两本书
+        if len(cell_el) ==1:
+            cell_el[0].click()
+            bookNum = 1
+            #一本书
+
+        if bookNum <=2 :  #两本书时不左滑,条件需要改，未完待续
+            print '两本书或1本书时候'
+            cell_el[0].click()
+            self.driver.press_keycode(4)
+            sleep(MIDDLE_SLEEPY_TIME)
+            self.bookshelfUpSwipe() #上滑
+        else:
+            self.bookshelfLeftSwipe()  #左滑书架
+            print '~~左滑书架后'
+            print cell_el[0].size["width"]
+            print cell_el[1].size["width"]
+            print '~~~'
+            if cell_el[0].size["width"] < cell_el[1].size["width"]:#即将到头了
+                print '即将到头了~'
+                self.bookshelfUpSwipe() #上滑
+
+            else:#普通左滑
+                self.tranverseBookTest()
+                print '普通左滑'
+
+
+
 
     def tranverseBook(self):
+        global LAST_TITLE
     	#遍历书籍列表,#已进入passage
-        global VERTICAL_COUNT
+
         global HORIZONTAL_COUNT
-        for i in range(0,1):
-            print '第'+ str(i) +'次遍历'
-            cell_el = self.find_elements_by_id("com.boxfish.teacher:id/iv_item_course_grid_cell")
-            sleep(SHORT_SLEEPY_TIME)
-            print 'cell_en' + str(len(cell_el))
-            if len(cell_el) == 0:
-                continue
+        #for i in range(0,1):
+        print '第'+ str(1) +'次遍历'
+        cell_el = self.find_elements_by_id("com.boxfish.teacher:id/iv_item_course_grid_cell")
+        sleep(SHORT_SLEEPY_TIME)
 
-            cell_el[i].click()
-            print '点击了第'+ str(i) +'本书'
-
-            sleep(SHORT_SLEEPY_TIME)
-            self.transverPPT()  #处理课件里面的内容
-            self.driver.press_keycode(4)
-            print '返回到格子'
-            sleep(SHORT_SLEEPY_TIME)
-
-            self.driver.swipe(width + x + x , y , x , y,1000)
-            print '左滑'
-            HORIZONTAL_COUNT = HORIZONTAL_COUNT + 1
-            print 'HORIZONTAL_COUNT=' + str(HORIZONTAL_COUNT)
-            sleep(MIDDLE_SLEEPY_TIME)
-        if VERTICAL_COUNT == 2:
-            self.driver.press_keycode(4)
-            VERTICAL_COUNT = 0
+        if len(cell_el) == 0:
             return
+        cell_el[0].click()  #点击了中级听读
+        print '--点击了第'+ str(0) +'本书'
+
+        sleep(SHORT_SLEEPY_TIME)
+        #self.transverPPT()  #处理课件里面的内容
+        self.driver.press_keycode(4)
+        print '---返回到格子'
+        sleep(SHORT_SLEEPY_TIME)
+
+        self.bookshelfLeftSwipe()  #左滑书架
+
+        print '~~左滑'
+        HORIZONTAL_COUNT = HORIZONTAL_COUNT + 1
+
+        sleep(MIDDLE_SLEEPY_TIME)
+
         if HORIZONTAL_COUNT == 2: #这个值为横向的个数
             #循环出来后，向上滚动1个高度
-            self.driver.swipe(x,1050,x,500,1000)
-            print '上滑'
+            self.driver.swipe(x,1190,x,500,1000)
+            print '~~上滑'
             sleep(MIDDLE_SLEEPY_TIME)
             HORIZONTAL_COUNT = 0
-            VERTICAL_COUNT  = VERTICAL_COUNT + 1
-            print '-----------需要重置的HORIZONTAL_COUNT=' + str(HORIZONTAL_COUNT)
-            self.tranverseBook()
+            #判断是否竖直方向到头了
+            eles = self.find_elements_by_id("com.boxfish.teacher:id/tv_type_title")
 
+
+            if len(eles) > 0:
+                if LAST_TITLE != '': #如果数组大于0就比较下，如果数组为0，就直接append
+                #数组的最后一项，与获取的第一项比较
+                    length = len(eles)
+                    print LAST_TITLE + ' vs ' + eles[length-1].text
+                    if LAST_TITLE == eles[length-1].text:
+                        #不再上滑
+                        LAST_TITLE = ''
+                        print '不再上滑，清空数组'
+                        return
+                    else:
+                        LAST_TITLE = eles[len(eles)-1].text
+                        FIRST_LEFT_SWIPE_IN_BOOKSHELF = 1
+                        self.tranverseBook()
+                else:
+                    LAST_TITLE = eles[len(eles)-1].text
+                    FIRST_LEFT_SWIPE_IN_BOOKSHELF = 1
+                    self.tranverseBook()
+            else:
+                print '标题个数为0'
+                return
         else:
             self.tranverseBook()
+
 
 
     #选择一个book,以后可改为选择某一个模板
     def chooseTemplate(self):
         global DOWNLOAD_SUCCESS
+        global FIRST_LEFT_SWIPE_IN_BOOKSHELF
         #进入PASSAGE,点击PASSAGE
         iv_item_course_catalog_background_el = self.find_elements_by_id("com.boxfish.teacher:id/iv_item_course_catalog_background")
-        print '----'
-        print len(iv_item_course_catalog_background_el) #10张图
 
         #测试滚动
         # if len(iv_item_course_catalog_background_el) > 0 :
@@ -194,81 +309,21 @@ class ContactsAndroidTests(unittest.TestCase):
         #     cell_el = self.find_elements_by_id("com.boxfish.teacher:id/iv_item_course_grid_cell")
         #
         #     print  "-----"
-        #     self.tranverseBook()
+        #     self.tranversBookTest()
+
         #测试滚动
+
         if len(iv_item_course_catalog_background_el) == 0:
             return
 
-        for i in range(1,len(iv_item_course_catalog_background_el)):  #遍历类别
+        for i in range(0,len(iv_item_course_catalog_background_el)):  #遍历类别
             print '-正在点击第'+ str(i) +'个类别'
+            FIRST_LEFT_SWIPE_IN_BOOKSHELF = 1
             iv_item_course_catalog_background_el[i].click() #点击TEXTBOOK
-            self.tranverseBook()
-
-        #         cell_el = self.find_elements_by_id("com.boxfish.teacher:id/iv_item_course_grid_cell")
-        #         if len(cell_el) > 0 :
-        #             for j in range(0,len(cell_el)):
-        #                 if cell_el[j] is not None:
-        #                     cell_el[j].click() #点击书籍
-        #                     print '--正在点击第' + str(j) + '本书'
-        #                     cover_el = self.find_elements_by_id("com.boxfish.teacher:id/sd_catalog_cover")
-        #                     if len(cover_el) > 0 :
-        #                         for k in range(0,len(cover_el)):
-        #                             if cover_el[k] is not None:
-        #                                 cover_el[k].click()  #点击课件
-        #                                 sleep(MIDDLE_SLEEPY_TIME)
-        #                                 print '---正在点击第' + str(k) + '个课件'
-        #                             #self.operationPpt()
-        #                                 print '下载前'
-        #                                 self.judgeDownloadClass() #判断是否需要下载课件
-        #                                 print '下载后'
-        #                             #global DOWNLOAD_SUCCESS
-        #                                 print DOWNLOAD_SUCCESS
-        #                                 if DOWNLOAD_SUCCESS  == 1 :
-        #                                     self.operationPpt()
-        #
-        #                     sleep(MIDDLE_SLEEPY_TIME)  #看下位置问题
-        #                     self.driver.press_keycode(4)
-        #         sleep(MIDDLE_SLEEPY_TIME)
-        #         self.driver.press_keycode(4)
+            self.tranverseBookTest()
+            self.driver.press_keycode(4)
 
 
-
-
-
-
-
-
-
-        # if len(iv_item_course_catalog_background_el) > 0 :
-        #     for i in range(0,len(iv_item_course_catalog_background_el)):
-        #         print '-正在点击第'+ str(i) +'个类别'
-        #         iv_item_course_catalog_background_el[i].click() #点击TEXTBOOK
-        #         cell_el = self.find_elements_by_id("com.boxfish.teacher:id/iv_item_course_grid_cell")
-        #         if len(cell_el) > 0 :
-        #             for j in range(0,len(cell_el)):
-        #                 if cell_el[j] is not None:
-        #                     cell_el[j].click() #点击书籍
-        #                     print '--正在点击第' + str(j) + '本书'
-        #                     cover_el = self.find_elements_by_id("com.boxfish.teacher:id/sd_catalog_cover")
-        #                     if len(cover_el) > 0 :
-        #                         for k in range(0,len(cover_el)):
-        #                             if cover_el[k] is not None:
-        #                                 cover_el[k].click()  #点击课件
-        #                                 sleep(MIDDLE_SLEEPY_TIME)
-        #                                 print '---正在点击第' + str(k) + '个课件'
-        #                             #self.operationPpt()
-        #                                 print '下载前'
-        #                                 self.judgeDownloadClass() #判断是否需要下载课件
-        #                                 print '下载后'
-        #                             #global DOWNLOAD_SUCCESS
-        #                                 print DOWNLOAD_SUCCESS
-        #                                 if DOWNLOAD_SUCCESS  == 1 :
-        #                                     self.operationPpt()
-        #
-        #                     sleep(MIDDLE_SLEEPY_TIME)  #看下位置问题
-        #                     self.driver.press_keycode(4)
-        #         sleep(MIDDLE_SLEEPY_TIME)
-        #         self.driver.press_keycode(4)
 
 
     #判断是否需要下载课件
