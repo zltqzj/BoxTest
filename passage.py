@@ -86,25 +86,7 @@ class ContactsAndroidTests(unittest.TestCase):
 
 
 
-#pragma mark - 重写driver方法
 
-    def find_element_by_id(self, eid):
-        try:
-            return self.driver.find_element_by_id(eid)
-        except NoSuchElementException:
-            return None
-
-    def find_elements_by_id(self, eid):
-        try:
-            return self.driver.find_elements_by_id(eid)
-        except NoSuchElementException:
-            return None
-
-    def find_element_by_class_name(self, eclass):
-        try:
-            return self.driver.find_element_by_class_name(eclass)
-        except NoSuchElementException:
-            return None
 
 #pragma mark - 通用方法
 
@@ -147,7 +129,12 @@ class ContactsAndroidTests(unittest.TestCase):
     def bookshelfUpSwipe(self):
         global LAST_TITLE
 
-        global FIRST_LEFT_SWIPE_IN_BOOKSHELF
+       
+        print '上滑操作前的lasttitle'
+        print LAST_TITLE
+        if LAST_TITLE == 'STOP':
+            return
+
         up_padding = self.getSize()[1] * 13 / 640  #会改成500+up_padding
         self.driver.swipe(x,1190,x,500,1000)
 
@@ -156,36 +143,48 @@ class ContactsAndroidTests(unittest.TestCase):
         #判断是否竖直方向到头了
         eles = self.find_elements_by_id("com.boxfish.teacher:id/tv_type_title")
         if len(eles) > 0:
-            if LAST_TITLE != '': #如果数组大于0就比较下，如果数组为0，就直接append
+            print  '赋值前最后一个标题：' 
+            print LAST_TITLE
+            if LAST_TITLE != '' : #如果数组大于0就比较下，如果数组为0，就直接append
             #数组的最后一项，与获取的第一项比较
                 length = len(eles)
                 print LAST_TITLE + ' vs ' + eles[length-1].text
                 if LAST_TITLE == eles[length-1].text:
-                    #不再上滑
-                    LAST_TITLE = ''
+                    #不再上滑,需要遍历后三排
+                    LAST_TITLE = 'STOP'
                     print '不再上滑，清空数组'
                     return
                 else:
                     LAST_TITLE = eles[len(eles)-1].text
-                    #self.tranverseBookTest()
+                    print   '比较后最后一个标题：' 
+                    print LAST_TITLE
             else:
                 LAST_TITLE = eles[len(eles)-1].text
-
-                #self.tranverseBook()
+                print  '赋值后最后一个标题：' 
+                print LAST_TITLE
         else:
             print '标题个数为0'
             return
         self.tranverseBookTest()
 
     def tranverseBookTest(self):#遍历书籍列表,#已进入passage
+
         global LAST_TITLE  #竖直方向最后一个标题
-        global FIRST_LEFT_SWIPE_IN_BOOKSHELF  #是否是第一次左滑
+        tv_type_title = self.find_elements_by_id("com.boxfish.teacher:id/tv_type_title")
+        if LAST_TITLE == '' and len(tv_type_title) > 0 :
+            LAST_TITLE = tv_type_title[len(tv_type_title)-1].text
+            print '第一次给lasttitle赋值：'
+            print LAST_TITLE
+
+
+
         cell_el = self.find_elements_by_id("com.boxfish.teacher:id/iv_item_course_grid_cell") #书架上的书
         sleep(SHORT_SLEEPY_TIME)
         if len(cell_el) == 0:
             return
         cell_el[0].click()  #点击了中级听读
         print '--点击了第'+ str(1) +'本书'
+        
         sleep(SHORT_SLEEPY_TIME)  #这个后面需要加点击ppt的处理
         self.driver.press_keycode(4)
         print '---返回到书架'
@@ -200,18 +199,21 @@ class ContactsAndroidTests(unittest.TestCase):
         if len(cell_el) ==2:
             b = cell_el[1].location.get('y')
             a = cell_el[0].location.get('y')
-            bookNum = 2
-            #两本书
-        if len(cell_el) ==1:
-            cell_el[0].click()
-            bookNum = 1
-            #一本书
+            if b > a :
+                bookNum = 1
+            #1本书
+        
 
         if bookNum <=2 :  #两本书时不左滑,条件需要改，未完待续
-            print '两本书或1本书时候'
+
+            print '两本书或1本书时候' + str(bookNum)
             cell_el[0].click()
             self.driver.press_keycode(4)
+            if bookNum ==2:
+                cell_el[1].click()
+                self.driver.press_keycode(4)
             sleep(MIDDLE_SLEEPY_TIME)
+
             self.bookshelfUpSwipe() #上滑
         else:
             self.bookshelfLeftSwipe()  #左滑书架
@@ -221,6 +223,17 @@ class ContactsAndroidTests(unittest.TestCase):
             print '~~~'
             if cell_el[0].size["width"] < cell_el[1].size["width"]:#即将到头了
                 print '即将到头了~'
+
+                cell_el[0].click()
+                self.driver.press_keycode(4)
+                if len(cell_el) >= 1 :
+                    cell_el[1].click()
+                    self.driver.press_keycode(4)
+                if len(cell_el) >= 2:
+                    cell_el[2].click()
+                    self.driver.press_keycode(4)
+                sleep(MIDDLE_SLEEPY_TIME)
+
                 self.bookshelfUpSwipe() #上滑
 
             else:#普通左滑
@@ -279,12 +292,10 @@ class ContactsAndroidTests(unittest.TestCase):
                         print '不再上滑，清空数组'
                         return
                     else:
-                        LAST_TITLE = eles[len(eles)-1].text
-                        FIRST_LEFT_SWIPE_IN_BOOKSHELF = 1
+                        LAST_TITLE = eles[length-1].text
                         self.tranverseBook()
                 else:
-                    LAST_TITLE = eles[len(eles)-1].text
-                    FIRST_LEFT_SWIPE_IN_BOOKSHELF = 1
+                    LAST_TITLE = eles[length-1].text
                     self.tranverseBook()
             else:
                 print '标题个数为0'
@@ -297,28 +308,17 @@ class ContactsAndroidTests(unittest.TestCase):
     #选择一个book,以后可改为选择某一个模板
     def chooseTemplate(self):
         global DOWNLOAD_SUCCESS
-        global FIRST_LEFT_SWIPE_IN_BOOKSHELF
+        global LAST_TITLE
         #进入PASSAGE,点击PASSAGE
         iv_item_course_catalog_background_el = self.find_elements_by_id("com.boxfish.teacher:id/iv_item_course_catalog_background")
-
-        #测试滚动
-        # if len(iv_item_course_catalog_background_el) > 0 :
-        #     iv_item_course_catalog_background_el[1].click() #点击passage
-        #     sleep(MIDDLE_SLEEPY_TIME)
-        #     #遍历书籍列表
-        #     cell_el = self.find_elements_by_id("com.boxfish.teacher:id/iv_item_course_grid_cell")
-        #
-        #     print  "-----"
-        #     self.tranversBookTest()
-
-        #测试滚动
-
+ 
         if len(iv_item_course_catalog_background_el) == 0:
             return
 
         for i in range(0,len(iv_item_course_catalog_background_el)):  #遍历类别
-            print '-正在点击第'+ str(i) +'个类别'
-            FIRST_LEFT_SWIPE_IN_BOOKSHELF = 1
+            print '-正在点击第'+ str(i) +'个类别后LAST_TITLE的值为：'
+            LAST_TITLE = ''
+            print LAST_TITLE
             iv_item_course_catalog_background_el[i].click() #点击TEXTBOOK
             self.tranverseBookTest()
             self.driver.press_keycode(4)
@@ -506,6 +506,7 @@ class ContactsAndroidTests(unittest.TestCase):
         #退出书籍列表
         self.driver.press_keycode(4)
 
+
     #获取屏幕宽和高
     def getSize(self):
         x=self.driver.get_window_size()['width']
@@ -543,6 +544,26 @@ class ContactsAndroidTests(unittest.TestCase):
         y1=int(l[1]*0.25)
         y2=int(l[1]*0.75)
         self.driver.swipe(x1,y1,x1,y2,t)
+
+#pragma mark - 重写driver方法
+
+    def find_element_by_id(self, eid):
+        try:
+            return self.driver.find_element_by_id(eid)
+        except NoSuchElementException:
+            return None
+
+    def find_elements_by_id(self, eid):
+        try:
+            return self.driver.find_elements_by_id(eid)
+        except NoSuchElementException:
+            return None
+
+    def find_element_by_class_name(self, eclass):
+        try:
+            return self.driver.find_element_by_class_name(eclass)
+        except NoSuchElementException:
+            return None
 
 if __name__ == '__main__':
     suite = unittest.TestLoader().loadTestsFromTestCase(ContactsAndroidTests)
