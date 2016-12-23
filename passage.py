@@ -1,569 +1,571 @@
 # -*- coding: utf-8 -*-
+import logging
 import os
-import unittest
-import traceback
 import random
-
-#from HTMLTestRunner import HTMLTestRunner
+import time
+import unittest
 from appium import webdriver
-from time import sleep
-from selenium.webdriver.support.ui import WebDriverWait
 from appium.webdriver.common.touch_action import TouchAction
-from appium.webdriver.common.multi_action import MultiAction
 from selenium.common.exceptions import NoSuchElementException
+from selenium.webdriver.support.ui import WebDriverWait
+from time import sleep
 
-PATH=lambda p:os.path.abspath(os.path.join(os.path.dirname(__file__),p))
-
-debug = 1
-
-SHORT_SLEEPY_TIME = 1  #一秒钟睡眠
-MIDDLE_SLEEPY_TIME = 3 #三秒钟睡眠
-LONG_SLEEPY_TIME = 5   #五秒钟睡眠
+logging.basicConfig(level=logging.INFO, format='%(asctime)s %(levelname)s %(message)s')
 
 
-DOWNLOAD_SUCCESS = 0
-HORIZONTAL_COUNT = 0
-VERTICAL_COUNT = 0
+def log(func):
+    def new_func(*args, **args2):
+        t0 = time.time()
+        back = func(*args, **args2)
+        logging.debug("%s %s --> %s [%.3fs]" % (func.__name__, args, back, time.time() - t0))
+        return back
 
-width = 456
-height = 608
-x = 85
-y = 479
-left_padding = 100
+    return new_func
 
-FIRST_LEFT_SWIPE_IN_BOOKSHELF= 1
 
-HORIZONTAL_ARRAY  = []
-LAST_TITLE  = ''
+PATH = lambda p: os.path.abspath(os.path.join(os.path.dirname(__file__), p))
+
+CATEGORY_TITLE = ''
+BOOKSHELF_LEFT_SWIPE_NUMBER = 0
+BOOKSHELF_UP_SWIPE_NUMBER = 0
+COURSE_LIST_UP_SWIPE_NUMBER = 0
+CUSTOM_CATEGORY_UP_SWIPE_NUMBER = 0
+
+CATEGORY_NAME_BUFFER = []
+
 
 class ContactsAndroidTests(unittest.TestCase):
-
-    #配置
+    # 前处理
     def setUp(self):
         desired_caps = {}
         desired_caps['platformName'] = 'Android'
-        desired_caps['platformVersion'] = '4.4.2'
-        desired_caps['deviceName'] = 'dd62c058'
-        desired_caps['app'] = PATH(
-            '../../../sample-code/apps/teacherbetatest-306-2.6.0-20160929.apk'
-        )
+        desired_caps['platformVersion'] = '6.0.1'
+        desired_caps['deviceName'] = 'dd62c058'  # 'T3Q6T16310018435'  #dd62c058
+        desired_caps['app'] = PATH('../../../sample-code/apps/chinese-betatest.apk')
         desired_caps['appPackage'] = 'com.boxfish.teacher'
         desired_caps['appActivity'] = 'com.boxfish.teacher.ui.activity.LoadingActivity'
         desired_caps["unicodeKeyboard"] = "True"
         desired_caps["resetKeyboard"] = "True"
-        self.driver = webdriver.Remote('http://localhost:4723/wd/hub', desired_caps)
 
-    #程序结束的地方
+        self.driver = webdriver.Remote('http://localhost:4730/wd/hub', desired_caps)
+        logging.info('测试用例,Setup完成.')
+
+    # 后处理
     def tearDown(self):
-        print("end")
-        #self.driver.quit()
+        self.driver.quit()
+        logging.info('测试用例,TearDown完成.')
 
-#pragma mark - 实际测试PASSAGE的过程
-
-    def test_passage_scan(self):
-
-        self.isLogin() #判断是否登录
-
-        #登录后
-        sleep(SHORT_SLEEPY_TIME)
-
-        self.chooseTemplate()  #选择一个book
-
-
-
-
-#pragma mark - 进入课件后的操作
-    def operationPpt(self):
-        sleep(MIDDLE_SLEEPY_TIME) #睡
-
-        self.swipeLeft(1000)  #左滑一下到选择班级界面
-        print '左滑选择班级'
-        sleep(MIDDLE_SLEEPY_TIME) #睡
-
-        self.chooseClass() #选择班级
-
-        self.scrollImagePage() #滑动课件
-
-
-
-
-
-#pragma mark - 通用方法
-
-    def transverPPT(self):
-        global DOWNLOAD_SUCCESS
-
-        cover_el = self.find_elements_by_id("com.boxfish.teacher:id/sd_catalog_cover")
-        #self.driver.press_keycode(4)
-
-        if len(cover_el) == 0:
-            self.driver.press_keycode(4)
-        else:
-            cover_el[0].click()  #点击第一个课件
-            print '下载前'
-            self.judgeDownloadClass() #判断是否需要下载课件
-            print '下载后'
-            print DOWNLOAD_SUCCESS
-            if DOWNLOAD_SUCCESS  == 1 :
-                self.operationPpt() #执行完返回到课程列表
-                self.driver.press_keycode(4)
-                sleep(SHORT_SLEEPY_TIME)
-
-    def bookshelfLeftSwipe(self):
-        global width
-        global y
-        global left_padding
-        global FIRST_LEFT_SWIPE_IN_BOOKSHELF
-        sleep(MIDDLE_SLEEPY_TIME)
+    # 登录系统
+    # def test_login(self):
+    #     try:
+    #         # 清除登录信息
+    #         try:
+    #             el = self.driver.find_element_by_id("com.boxfish.teacher:id/iv_clear_username")
+    #             el.click()
+    #         except Exception as e:
+    #
+    #             # 填充登录信息
+    #             el = self.driver.find_element_by_id("com.boxfish.teacher:id/ll_email")
+    #             el.send_keys("zltqzj@163.com")
+    #
+    #             el = self.driver.find_element_by_id("com.boxfish.teacher:id/ev_login_pw")
+    #             el.send_keys("123456")
+    #
+    #             el = self.driver.find_element_by_id("com.boxfish.teacher:id/btn_login")
+    #             el.click()
+    #
+    #             # 执行判断:导航栏出现"课程"二字
+    #             WebDriverWait(self.driver, 20).until(
+    #                 lambda driver: self.driver.find_element_by_id('com.boxfish.teacher:id/tv_header_title').text == u'课程')
+    #             print('登录成功，进入首页课程分类~')
+    #
+    #     except NoSuchElementException as e:
+    #         logging.warn('登录操作,用户已经登录.', e)
+    #
+    #     except Exception as e:
+    #         logging.error('登录操作,操作异常.', e)
 
 
-        cell_padding = self.find_elements_by_id("com.boxfish.teacher:id/iv_item_course_grid_cell") #书架上的书
-        left_padding = cell_padding[1].location.get('x') - cell_padding[0].location.get('x')
-        print '0000000'
-        print cell_padding[1].location.get('x')
-        print cell_padding[0].location.get('x')
-        print '0000000'
-        self.driver.drag_and_drop( cell_padding[1] , cell_padding[0]  )
+    def test_go_category(self):
+        global CATEGORY_TITLE
 
 
-    def bookshelfUpSwipe(self):
-        global LAST_TITLE
+        # CATEGORY_TITLE = 'PASSAGE'  #测试用
+        # return   #测试用
 
-       
-        print '上滑操作前的lasttitle'
-        print LAST_TITLE
-        if LAST_TITLE == 'STOP':
+        print('进入首页')
+
+        category_name_buffer = []
+        try:
+            for i in range(3):
+                print('寻找导航栏标题')
+                # 执行判断:导航栏出现"课程"二字
+                WebDriverWait(self.driver, 20).until(
+                    lambda driver: self.driver.find_element_by_id('com.boxfish.teacher:id/tv_header_title').text == u'课程')
+
+                print('获取分类标题')
+                # 获取分类标题,如TEXTBOOK,TOPIC
+                el = self.driver.find_elements_by_id("com.boxfish.teacher:id/tv_item_course_catalog_name")
+                category_amount = len(el)
+                print('分类个数=' + str(category_amount))
+
+                for index in range(0,category_amount):
+                    category_x = el[index].size["width"] + el[index].location.get('x') + 1
+                    category_y = el[index].location.get('y')
+                    category_title = el[index].text
+                    print('标题：' + str(category_title))
+                    print('标题数组：' )
+                    print  category_name_buffer
+
+                    if category_title not in category_name_buffer:
+                        category_name_buffer.append(category_title)
+
+                        action = TouchAction(self.driver)
+                        action.press(x=category_x, y=category_y).release().perform()
+
+                        logging.info('进入第%d个类别%s操作成功'%(index,str(el[index].text)))
+                        # WebDriverWait(self.driver, 10).until(
+                        #     lambda driver: category_title == self.driver.find_element_by_id('com.boxfish.teacher:id/tv_header_title').text)
+
+                        self.do_category_vertical()
+                        print('-----------遍历第'+ str(index) +'个类别完毕，准备重新选择类别--------------')
+                        print('-----------遍历标题：' + str(category_title) +',完毕.准备重新选择类别--------------')
+                        CATEGORY_TITLE  = category_title
+
+                        # WebDriverWait(self.driver, 10).until(
+                        #     lambda driver: category_title == self.driver.find_element_by_id('com.boxfish.teacher:id/tv_header_title').text)
+
+                        self.driver.press_keycode(4)
+
+                print('首页上滑操作')
+                self.driver.drag_and_drop(el[2], el[0])
+
+        except Exception as e:
+            print('进入分类异常')
+            logging.error('进入分类异常.', e)
+
+    #第三个测试用例，recover
+    def test_go_category_recover(self):
+        global  CATEGORY_TITLE
+        print('恢复的title:' + str(CATEGORY_TITLE))
+
+        if CATEGORY_TITLE == '':
+            self.test_go_category()
             return
 
-        up_padding = self.getSize()[1] * 13 / 640  #会改成500+up_padding
-        self.driver.swipe(x,1190,x,500,1000)
+        WebDriverWait(self.driver, 20).until(
+            lambda driver: driver.find_element_by_id('com.boxfish.teacher:id/tv_header_title').text == u'课程')
+        print('获取分类标题')
+        # 获取分类标题,如TEXTBOOK,TOPIC
+        index_flag = 0
+        for i  in range(3):
+            print('循环第' + str(i)+'次')
+            category_names = self.driver.find_elements_by_id("com.boxfish.teacher:id/tv_item_course_catalog_name")
+            category_amount = len(category_names)
+            print('分类个数=' + str(category_amount))
 
-        print '上滑'
-        #记录下bottom tv_type_title
-        #判断是否竖直方向到头了
-        eles = self.find_elements_by_id("com.boxfish.teacher:id/tv_type_title")
-        if len(eles) > 0:
-            print  '赋值前最后一个标题：' 
-            print LAST_TITLE
-            if LAST_TITLE != '' : #如果数组大于0就比较下，如果数组为0，就直接append
-            #数组的最后一项，与获取的第一项比较
-                length = len(eles)
-                print LAST_TITLE + ' vs ' + eles[length-1].text
-                if LAST_TITLE == eles[length-1].text:
-                    #不再上滑,需要遍历后三排
-                    LAST_TITLE = 'STOP'
-                    print '不再上滑，清空数组'
-                    return
-                else:
-                    LAST_TITLE = eles[len(eles)-1].text
-                    print   '比较后最后一个标题：' 
-                    print LAST_TITLE
-            else:
-                LAST_TITLE = eles[len(eles)-1].text
-                print  '赋值后最后一个标题：' 
-                print LAST_TITLE
-        else:
-            print '标题个数为0'
-            return
-        self.tranverseBookTest()
+            for j in range(category_amount):
+                print '----'
+                print CATEGORY_TITLE
+                print category_names[j].text
+                print '----'
+                if CATEGORY_TITLE == category_names[j].text:
+                    index_flag = 1
+                    break
+            if index_flag == 1: #说明找到了
+                for k in range(j,category_amount):
+                    category_x = category_names[k].size["width"] + category_names[k].location.get('x') + 1
+                    category_y = category_names[k].location.get('y')
+                    category_title = category_names[k].text
+                    print('标题：' + str(category_title))
+                    print('标题数组：')
+                    print  category_names
 
-    def tranverseBookTest(self):#遍历书籍列表,#已进入passage
+                    action = TouchAction(self.driver)
+                    action.press(x=category_x, y=category_y).release().perform()
 
-        global LAST_TITLE  #竖直方向最后一个标题
-        tv_type_title = self.find_elements_by_id("com.boxfish.teacher:id/tv_type_title")
-        if LAST_TITLE == '' and len(tv_type_title) > 0 :
-            LAST_TITLE = tv_type_title[len(tv_type_title)-1].text
-            print '第一次给lasttitle赋值：'
-            print LAST_TITLE
+                    #logging.info('进入第%d个类别%s操作成功' % (i, str(print  category_name_buffer[i].text)))
+                    # WebDriverWait(self.driver, 10).until(
+                    #     lambda driver: category_title == self.driver.find_element_by_id('com.boxfish.teacher:id/tv_header_title').text)
 
+                    self.do_category_vertical()
+                    print('-----------遍历第' + str(k) + '个类别完毕，准备重新选择类别--------------')
+                    print('-----------遍历标题：' + str(category_title) + ',完毕.准备重新选择类别--------------')
+                    CATEGORY_TITLE = category_title
 
-
-        cell_el = self.find_elements_by_id("com.boxfish.teacher:id/iv_item_course_grid_cell") #书架上的书
-        sleep(SHORT_SLEEPY_TIME)
-        if len(cell_el) == 0:
-            return
-        cell_el[0].click()  #点击了中级听读
-        print '--点击了第'+ str(1) +'本书'
-        
-        sleep(SHORT_SLEEPY_TIME)  #这个后面需要加点击ppt的处理
-        self.driver.press_keycode(4)
-        print '---返回到书架'
-
-        bookNum = 3
-        if len(cell_el) >= 3:
-            b = cell_el[2].location.get('y')
-            a = cell_el[1].location.get('y')
-            if b > a:
-                bookNum = 2
-                #两本书
-        if len(cell_el) ==2:
-            b = cell_el[1].location.get('y')
-            a = cell_el[0].location.get('y')
-            if b > a :
-                bookNum = 1
-            #1本书
-        
-
-        if bookNum <=2 :  #两本书时不左滑,条件需要改，未完待续
-
-            print '两本书或1本书时候' + str(bookNum)
-            cell_el[0].click()
-            self.driver.press_keycode(4)
-            if bookNum ==2:
-                cell_el[1].click()
-                self.driver.press_keycode(4)
-            sleep(MIDDLE_SLEEPY_TIME)
-
-            self.bookshelfUpSwipe() #上滑
-        else:
-            self.bookshelfLeftSwipe()  #左滑书架
-            print '~~左滑书架后'
-            print cell_el[0].size["width"]
-            print cell_el[1].size["width"]
-            print '~~~'
-            if cell_el[0].size["width"] < cell_el[1].size["width"]:#即将到头了
-                print '即将到头了~'
-
-                cell_el[0].click()
-                self.driver.press_keycode(4)
-                if len(cell_el) >= 1 :
-                    cell_el[1].click()
                     self.driver.press_keycode(4)
-                if len(cell_el) >= 2:
-                    cell_el[2].click()
-                    self.driver.press_keycode(4)
-                sleep(MIDDLE_SLEEPY_TIME)
-
-                self.bookshelfUpSwipe() #上滑
-
-            else:#普通左滑
-                self.tranverseBookTest()
-                print '普通左滑'
-
-
-
-
-    def tranverseBook(self):
-        global LAST_TITLE
-    	#遍历书籍列表,#已进入passage
-
-        global HORIZONTAL_COUNT
-        #for i in range(0,1):
-        print '第'+ str(1) +'次遍历'
-        cell_el = self.find_elements_by_id("com.boxfish.teacher:id/iv_item_course_grid_cell")
-        sleep(SHORT_SLEEPY_TIME)
-
-        if len(cell_el) == 0:
-            return
-        cell_el[0].click()  #点击了中级听读
-        print '--点击了第'+ str(0) +'本书'
-
-        sleep(SHORT_SLEEPY_TIME)
-        #self.transverPPT()  #处理课件里面的内容
-        self.driver.press_keycode(4)
-        print '---返回到格子'
-        sleep(SHORT_SLEEPY_TIME)
-
-        self.bookshelfLeftSwipe()  #左滑书架
-
-        print '~~左滑'
-        HORIZONTAL_COUNT = HORIZONTAL_COUNT + 1
-
-        sleep(MIDDLE_SLEEPY_TIME)
-
-        if HORIZONTAL_COUNT == 2: #这个值为横向的个数
-            #循环出来后，向上滚动1个高度
-            self.driver.swipe(x,1190,x,500,1000)
-            print '~~上滑'
-            sleep(MIDDLE_SLEEPY_TIME)
-            HORIZONTAL_COUNT = 0
-            #判断是否竖直方向到头了
-            eles = self.find_elements_by_id("com.boxfish.teacher:id/tv_type_title")
-
-
-            if len(eles) > 0:
-                if LAST_TITLE != '': #如果数组大于0就比较下，如果数组为0，就直接append
-                #数组的最后一项，与获取的第一项比较
-                    length = len(eles)
-                    print LAST_TITLE + ' vs ' + eles[length-1].text
-                    if LAST_TITLE == eles[length-1].text:
-                        #不再上滑
-                        LAST_TITLE = ''
-                        print '不再上滑，清空数组'
-                        return
-                    else:
-                        LAST_TITLE = eles[length-1].text
-                        self.tranverseBook()
-                else:
-                    LAST_TITLE = eles[length-1].text
-                    self.tranverseBook()
+                break
             else:
-                print '标题个数为0'
+                self.driver.drag_and_drop(category_names[2], category_names[0])
+
+    #第四个测试用例recover2
+    def test_go_category_recover2(self):
+        self.test_go_category_recover()
+
+    # 第⑤个测试用例recover3
+    def test_go_category_recover3(self):
+        self.test_go_category_recover()
+
+
+    def do_custom_category(self):
+
+        # 执行判断:导航栏出现"课程"二字
+        WebDriverWait(self.driver, 10).until(
+            lambda driver: self.driver.find_element_by_id('com.boxfish.teacher:id/iv_item_course_grid_cell'))
+
+        grid_cell = self.driver.find_elements_by_id("com.boxfish.teacher:id/iv_item_course_grid_cell")
+        grid_cell_amount = len(grid_cell)
+        print('grid_cell_amount 个数 = ' + str(grid_cell_amount))
+
+        end_flag = False
+        if grid_cell_amount > 0:
+            grid_cell_height = grid_cell[0].size['height']
+
+            for index in range(0, grid_cell_amount - 2):
+                grid_cell[index].click()
+                self.do_course_list()
+                self.driver.press_keycode(4)
+
+            #如果cell个数小于6，无需再向上滚动
+            if grid_cell_amount <= 6:
+                print('cell个数小于6，无需再向上滑动')
+                grid_cell[grid_cell_amount-2].click()
+                self.do_course_list()
+                self.driver.press_keycode(4)
+
+                grid_cell[grid_cell_amount - 1].click()
+                self.do_course_list()
+                self.driver.press_keycode(4)
+
                 return
-        else:
-            self.tranverseBook()
 
+            while True:
+                print('无标题书架上滑操作')
+                self.driver.drag_and_drop(grid_cell[4], grid_cell[2])
 
+                grid_cell = self.driver.find_elements_by_id("com.boxfish.teacher:id/iv_item_course_grid_cell")
+                grid_cell_amount = len(grid_cell)
+                grid_cell[grid_cell_amount - 2].click()
+                self.do_course_list()
+                self.driver.press_keycode(4)
 
-    #选择一个book,以后可改为选择某一个模板
-    def chooseTemplate(self):
-        global DOWNLOAD_SUCCESS
-        global LAST_TITLE
-        #进入PASSAGE,点击PASSAGE
-        iv_item_course_catalog_background_el = self.find_elements_by_id("com.boxfish.teacher:id/iv_item_course_catalog_background")
- 
-        if len(iv_item_course_catalog_background_el) == 0:
-            return
+                grid_cell[grid_cell_amount - 1].click()
+                self.do_course_list()
+                self.driver.press_keycode(4)
 
-        for i in range(0,len(iv_item_course_catalog_background_el)):  #遍历类别
-            print '-正在点击第'+ str(i) +'个类别后LAST_TITLE的值为：'
-            LAST_TITLE = ''
-            print LAST_TITLE
-            iv_item_course_catalog_background_el[i].click() #点击TEXTBOOK
-            self.tranverseBookTest()
-            self.driver.press_keycode(4)
+                #无标题情况判断纵向退出的判断
+                if (grid_cell_height + grid_cell[grid_cell_amount - 1].location.get('y')) == self.get_screen_size()[1]:
+                    if end_flag:
+                        print('------------------无标题情况纵向退出---------------------')
+                        self.driver.press_keycode(4)
+                        break
+                    else:
+                        end_flag = True
+                else:
+                    end_flag = False
 
-
-
-
-    #判断是否需要下载课件
-    def judgeDownloadClass(self):
-        global DOWNLOAD_SUCCESS
-        DOWNLOAD_SUCCESS = 0
-        #判断是否有进度条
-        tv_download_schma_el = None
+    def do_category_vertical(self):
         try:
-            print '44444'
-            tv_download_schma_el = self.find_element_by_id("com.boxfish.teacher:id/tv_download_schma")
-            confirm_el = self.find_element_by_id("com.boxfish.teacher:id/btn_confirm")
-            if tv_download_schma_el is not None:
-                print '555555'
-                #有资源需要下
-                driver  = self.driver
+
+            # 等到iv_item_course_grid_cell出现，证明push成功
+            WebDriverWait(self.driver, 10).until(
+                lambda driver: self.driver.find_element_by_id('com.boxfish.teacher:id/iv_item_course_grid_cell'))
+
+            rows_amount = len(self.driver.find_elements_by_id("com.boxfish.teacher:id/gridView")) #self.get_grid_amount()
+
+            print('grid个数：' + str(rows_amount))
+
+            if rows_amount == 0:
+                self.do_custom_category()
+                return
+
+            for index_row in range(rows_amount):
+                if rows_amount in [1, 2, 3]:
+                    self.do_category_horizontal(index_row)
+
+            if rows_amount == 3:
+                # 针对退出循环条件相同的场景进行重试
+                flag_retry_vertical = False
+
+                while True:
+                    print('有标题书架，上滑操作')
+                    self.driver.drag_and_drop(self.get_grid()[1], self.get_grid()[0])
+
+                    # 处理第三行
+                    self.do_category_horizontal(2)
+
+                    # 状态判断
+                    if self.get_grid_amount() == 4:
+                        flag_retry_vertical = False
+
+                    elif self.get_grid_amount() == 3:
+                        # 书架高度,以第二行作为标准高度
+                        grid_height = self.get_grid()[1].size['height']
+
+                        if (grid_height + self.get_grid()[2].location.get('y')) == self.get_screen_size()[1]:
+                            if flag_retry_vertical:
+                                print('有标题书架，结束上滑')
+                                break
+                            else:
+                                flag_retry_vertical = True
+                        else:
+                            flag_retry_vertical = False
+            else:
+                logging.warn("课程列表出现第4行.")
+        except Exception as e:
+            print('纵向遍历异常')
+
+    def do_category_horizontal(self, index):
+        try:
+            cells = self.get_cells(index)
+            cells_amount = self.get_cells_amount(index)
+
+            for index_column in range(cells_amount):
+                if cells_amount in [1, 2, 3]:
+                    cells[index_column].click()
+                    self.do_course_list()
+                    self.driver.press_keycode(4)
+
+                    WebDriverWait(self.driver, 10).until(
+                        lambda driver: self.driver.find_element_by_id(
+                            'com.boxfish.teacher:id/tv_header_title'))
+
+            if cells_amount == 3:
+                # 针对退出循环条件相同的场景进行重试
+                flag_retry_horizontal = False
+
+                #结束的padding
+                end_padding =  cells[1].location.get('x') - cells[0].location.get('x') - cells[0].size['width']
+                print  'padding =' + str(end_padding)
+
+                while True:
+                    self.driver.drag_and_drop(cells[1], cells[0])
+                    print('横向左滑操作')
+
+                    # 点击第三课
+                    self.get_cells(index)[2].click()
+                    self.do_course_list()
+                    self.driver.press_keycode(4)
+
+                    WebDriverWait(self.driver, 10).until(
+                        lambda driver: self.driver.find_element_by_id(
+                            'com.boxfish.teacher:id/tv_header_title'))
+
+                    if self.get_cells_amount(index) == 4:
+                        flag_retry_horizontal = False
+
+                    elif self.get_cells_amount(index) == 3:
+                        # 书本宽度,以第二本书作为标准书宽
+                        book_width = cells[1].size["width"]
+
+                        logging.info("横向--------------书宽:" + str(book_width) + " ＋ " +
+                                     "边距:" + str(cells[2].location.get('x')) + " ＝ " +
+                                     "比值:" + str(book_width + cells[2].location.get('x')) + " & " +
+                                     "屏宽:" + str(self.get_screen_size()[0])
+                                     )
+
+                        if (book_width + cells[2].location.get('x')) + end_padding == self.get_screen_size()[0]:
+                            if flag_retry_horizontal:
+                                break
+                            else:
+                                flag_retry_horizontal = True
+                        else:
+                            flag_retry_horizontal = False
+            else:
+                logging.warn("课程列表出现第4列.")
+        except Exception as e:
+            print('横向遍历异常')
+
+    # 操作list界面
+    def do_course_list(self):
+        try:
+            WebDriverWait(self.driver, 10).until(
+                lambda driver: self.driver.find_element_by_id('com.boxfish.teacher:id/lv_book_catalog'))
+            #return   #测试用,不点击list，到list界面就返回
+
+            course_list_container = self.driver.find_element_by_id("com.boxfish.teacher:id/lv_book_catalog")
+            course_item = course_list_container.find_elements_by_class_name("android.widget.LinearLayout")
+            course_item_height = course_item[0].size['height']
+            course_item_amount = len(course_item)
+
+            print('list_item个数' + str(course_item_amount))
+
+
+            if course_item_amount == 1:
+                print('listitem个数为1的时候')
+                self.go_course(course_item[0])
+                pass
+            elif course_item_amount == 2:
+                print('listitem个数为2的时候')
+                self.go_course(course_item[0])
+                print('准备执行第二个')
+                self.go_course(course_item[1])
+                pass
+            else:
+                # 点击前三个，然后滚动
+                print('listitem个数为3的时候')
+                self.go_course(course_item[0])
+                self.go_course(course_item[1])
+
+                end_flag = False
+                while True:
+
+                    self.go_course(course_item[2])
+
+                    self.driver.drag_and_drop(course_item[1], course_item[0])  # 上滑操作
+                    print('-------list界面上滑操作--------')
+                    last_course_y = course_item[course_item_amount - 1].location.get('y')
+                    print('纵向------------打印list_item_height' + str(course_item_height) + '----y-' + str(
+                        last_course_y) + '---screen_height' + str(self.get_screen_size()[1]))
+
+                    if course_item_height + last_course_y == self.get_screen_size()[1]:
+                        if end_flag:
+                            print('----------list界面停止上滑----------')
+                            break
+                        else:
+                            end_flag = True
+                    else:
+                        end_flag = False
+        except Exception as e:
+            print('操作list界面异常')
+
+    def get_grid(self):
+        try:
+            WebDriverWait(self.driver, 10).until(
+                lambda driver: self.driver.find_element_by_id('com.boxfish.teacher:id/gridView'))
+            return self.driver.find_elements_by_id("com.boxfish.teacher:id/gridView")
+        except Exception as e:
+            print('获取grid异常')
+
+
+    def get_grid_amount(self):
+        return len(self.get_grid())
+
+    def get_cells(self, index):
+        try:
+            grid = self.get_grid()
+            print('崩溃前的index' + str(index) + '数组个数：' + str(self.get_grid_amount()))
+            cells = grid[index].find_elements_by_id("com.boxfish.teacher:id/iv_item_course_grid_cell")
+            return cells
+        except Exception as e:
+            print('获取cell异常')
+
+    def get_cells_amount(self, index):
+        return len(self.get_cells(index))
+
+    def get_screen_size(self):
+        x = self.driver.get_window_size()['width']
+        y = self.driver.get_window_size()['height']
+        return x, y
+
+    def go_course(self, element):
+        try:
+            WebDriverWait(self.driver, 1000).until(
+                lambda driver: self.driver.find_element_by_id('com.boxfish.teacher:id/tv_book_name'))
+
+            #print('课程标题是：' + str(element.find_element_by_id('com.boxfish.teacher:id/tv_book_name').text))
+            element.click()
+
+            # 判断是否下载成功
+            try:
+                WebDriverWait(self.driver, 1000).until(
+                    lambda driver: self.driver.find_element_by_id('com.boxfish.teacher:id/tv_listen_part_title'))
+                print('下载课件成功！！！')
+                self.driver.press_keycode(4)  # 测试用，到课程ppt标题页就返回
+                return  #测试用，到ppt标题页就返回
+
+            # 下载失败会出现：com.boxfish.teacher:id/confirm_button
+            except Exception as e:
+                print('************下载课件异常*************')
                 try:
-                    WebDriverWait(driver, 90).until(
-                        lambda driver : driver.find_element_by_id('com.boxfish.teacher:id/tv_listen_part_title')
-                    )
-                    #global DOWNLOAD_SUCCESS
-                    DOWNLOAD_SUCCESS = 1
+                    element.click()
+                    print('点击list元素')
+                    WebDriverWait(self.driver, 1000).until(
+                        lambda driver: driver.find_element_by_id('com.boxfish.teacher:id/tv_listen_part_title'))
+
                 except Exception as e:
-                    if confirm_el is not None:
-                        confirm_el.click()
-                        #callback(0)  #下载资源失败
-                        print '00000000'
-                        #global DOWNLOAD_SUCCESS
-                        DOWNLOAD_SUCCESS = 0
+                    confirm_button = self.driver.find_element_by_id("com.boxfish.teacher:id/confirm_button")
+                    confirm_button.click()
+                    element.click()
+                    WebDriverWait(self.driver, 1000).until(
+                        lambda driver: driver.find_element_by_id('com.boxfish.teacher:id/tv_listen_part_title'))
+                    print('点击确认下载课件失败，点击list[index]，进入课件后')
 
-                finally:
-                    print '2222222'
-                    sleep(LONG_SLEEPY_TIME)
+            self.swipeLeft(500)
+            print('左滑后选择班级')
+            # 选择班级
 
-                    print confirm_el.text
-                    if confirm_el is not None:
-                        confirm_el.click()
-                        #callback(0)  #下载资源失败
-                        print '00000000'
-                        #global DOWNLOAD_SUCCESS
-                        DOWNLOAD_SUCCESS = 0
+            # 这里补救一次swipe Left
+            try:
+                WebDriverWait(self.driver, 10).until(
+                    lambda driver: self.driver.find_element_by_id('com.boxfish.teacher:id/lv_choose_class'))
+            except Exception as e:
+                print('补救的左滑')
+                self.swipeLeft(1000)
 
-            else:
-                print '99999'
-                #global DOWNLOAD_SUCCESS
-                DOWNLOAD_SUCCESS = 1
+            choose_class = self.driver.find_element_by_id("com.boxfish.teacher:id/lv_choose_class")
+            class_list = choose_class.find_elements_by_class_name("android.widget.LinearLayout")
 
-            sleep(MIDDLE_SLEEPY_TIME)
-            if confirm_el is not None:
-                confirm_el.click()
-                #global DOWNLOAD_SUCCESS
-                DOWNLOAD_SUCCESS = 0
-                print '888888'
-                print DOWNLOAD_SUCCESS
+            if len(class_list) > 0:
+                random_choose = random.randint(1, len(class_list))
+                class_list[random_choose - 1].click()
 
+            # 点击下一页
+            print('点击下一页')
+            WebDriverWait(self.driver, 100).until(
+                lambda driver: self.driver.find_element_by_id('com.boxfish.teacher:id/tv_next_pager'))
+            next_page = self.driver.find_element_by_id("com.boxfish.teacher:id/tv_next_pager")
+            next_page.click()
 
-
+            while False == self.finish_class():
+                self.swipeLeft(400)
         except Exception as e:
-            sleep(SHORT_SLEEPY_TIME)
+            print('课程ppt遍历异常')
 
-    #选择一个班级
-    def chooseClass(self):
-        el = self.find_element_by_class_name("android.widget.ListView")
-        if el is not None:
-            el.click()
-            sleep(SHORT_SLEEPY_TIME)
-            #点击下一页
-            el = self.find_element_by_id("com.boxfish.teacher:id/tv_next_pager")
-            el.click()
-            sleep(SHORT_SLEEPY_TIME)
-        else:
-            self.driver.press_keycode(4)
-
-    #随机左滑右滑，#随机滑动X次
-    def scrollImagePage(self):
-
-        scrollRandomCount = random.randint(15,25) #随机滑动N次
-        if debug == 1:
-            scrollRandomCount = random.randint(1,5)
-
-        for i in range(1,scrollRandomCount):
-            leftOrRightRandom = random.randint(1,5)
-            #随机左滑右滑
-            if leftOrRightRandom % 5 != 0 :
-                self.swipeLeft(500)  #左滑概率大
-                if debug == 0 :
-                    self.readAndRecite()#读
-            else:
-                self.swipeRight(500) #右滑概率小
-                if debug == 1 :
-                    self.readAndRecite()#读
-
-            sleep(SHORT_SLEEPY_TIME)
-            #python的三目运算符和以前见的不一样啊~
-            #self.swipeLeft(1000) if leftOrRightRandom % 3 != 0 else self.swipeRight(1000)
-
-
-    #判断是否已登录
-    def isLogin(self):
-        el = None
+    def finish_class(self):
         try:
-            el = self.find_element_by_id("com.boxfish.teacher:id/iv_item_course_catalog_background")
-            if el is None: #如果没有首页图片，说明没有登录过
+            end_flag = self.driver.find_element_by_class_name("android.widget.TextView")
+            if end_flag.text == 'ACHIEVEMENTS OF THIS LESSON':
+                self.driver.press_keycode(4)  # 退出课件啦
+                print('课件到头终止，返回list')
+                return True
+            else:
+                return False
+        except NoSuchElementException as e:
+            # 可以左滑
+            return False
 
-                sleep(MIDDLE_SLEEPY_TIME)
+    # 向左滑动
+    def swipeLeft(self, t):
+        l = self.get_screen_size()
+        x1 = int(l[0] * 0.75)
+        y1 = int(l[1] * 0.5)
+        x2 = int(l[0] * 0.25)
+        self.driver.swipe(x1, y1, x2, y1, t)
 
-                #清除按钮iv_clear_username
-                el = self.find_element_by_id("com.boxfish.teacher:id/iv_clear_username")
-                if el is not None:
-                    el.click()
-                el = self.find_element_by_id("com.boxfish.teacher:id/ll_email")
-                el.send_keys("zltqzj@163.com")
-                el = self.find_element_by_id("com.boxfish.teacher:id/ev_login_pw")
+    # 屏幕向右滑动
+    def swipeRight(self, t):
+        l = self.get_screen_size()
+        x1 = int(l[0] * 0.25)
+        y1 = int(l[1] * 0.5)
+        x2 = int(l[0] * 0.75)
+        self.driver.swipe(x1, y1, x2, y1, t)
 
-                el.send_keys("112358")
-                el = self.find_element_by_id("com.boxfish.teacher:id/btn_login")
-                el.click()
-                sleep(LONG_SLEEPY_TIME)
-
-        except Exception as e:
-            sleep(SHORT_SLEEPY_TIME)
-
-    #把朗读背诵单独提取出来
-    def readAndRecite(self):
-        #点击activity按钮
-        try:
-            el = self.driver.find_element_by_id("com.boxfish.teacher:id/ib_activity")
-            if el is None:
-                return;
-        except Exception as e:
-            return;
-        el.click()
-
-        sleep(SHORT_SLEEPY_TIME)
-        self.swipeLeft(1000)
-
-        #点击朗读按钮
-        el = self.find_element_by_id("com.boxfish.teacher:id/rb_read")
-        el.click()
-
-        sleep(SHORT_SLEEPY_TIME)
-
-        #朗读
-        el = self.find_element_by_id("com.boxfish.teacher:id/ib_record")
-        el.click()
-
-        sleep(MIDDLE_SLEEPY_TIME)
-        #朗读完毕
-        el = self.find_element_by_id("com.boxfish.teacher:id/read_vlv")
-        el.click()
-
-        #点击背诵按钮
-        el = self.find_element_by_id("com.boxfish.teacher:id/rb_recite")
-        el.click()
-        sleep(SHORT_SLEEPY_TIME)
-
-        el = self.find_element_by_id("com.boxfish.teacher:id/ib_record")
-        el.click()
-
-        sleep(MIDDLE_SLEEPY_TIME)
-        #背诵完毕
-        el = self.find_element_by_id("com.boxfish.teacher:id/read_vlv")
-        el.click()
-        sleep(SHORT_SLEEPY_TIME)
-
-        #点击安卓返回按钮，退出朗读背诵模式
-        self.driver.press_keycode(4)
-        sleep(SHORT_SLEEPY_TIME)
-
-    #退出课件浏览
-    def quitBook(self):
-        #退出课件
-        self.driver.press_keycode(4)
-        sleep(SHORT_SLEEPY_TIME)
-
-        #退出课程列表
-        self.driver.press_keycode(4)
-        sleep(SHORT_SLEEPY_TIME)
-
-        #退出书籍列表
-        self.driver.press_keycode(4)
-
-
-    #获取屏幕宽和高
-    def getSize(self):
-        x=self.driver.get_window_size()['width']
-        y=self.driver.get_window_size()['height']
-        return(x,y)
-
-    #向左滑动
-    def swipeLeft(self,t):
-        l=self.getSize()
-        x1=int(l[0]*0.75)
-        y1=int(l[1]*0.5)
-        x2=int(l[0]*0.25)
-        self.driver.swipe(x1,y1,x2,y1,t)
-
-    #屏幕向右滑动
-    def swipeRight(self,t):
-        l=self.getSize()
-        x1=int(l[0]*0.25)
-        y1=int(l[1]*0.5)
-        x2=int(l[0]*0.75)
-        self.driver.swipe(x1,y1,x2,y1,t)
-
-    #向上滑动
-    def swipeUp(self,t):
-        l=self.getSize()
-        x1=int(l[0]*0.5)
-        y1=int(l[1]*0.75)
-        y2=int(l[1]*0.25)
-        self.driver.swipe(x1,y1,x1,y2,t)
+    # 向上滑动
+    def swipeUp(self, t):
+        l = self.get_screen_size()
+        x1 = int(l[0] * 0.5)
+        y1 = int(l[1] * 0.75)
+        y2 = int(l[1] * 0.25)
+        self.driver.swipe(x1, y1, x1, y2, t)
 
     #向下滑动
     def swipeDown(self,t):
-        l=self.getSize()
+        l=self.get_screen_size()
         x1=int(l[0]*0.5)
         y1=int(l[1]*0.25)
         y2=int(l[1]*0.75)
         self.driver.swipe(x1,y1,x1,y2,t)
-
-#pragma mark - 重写driver方法
-
-    def find_element_by_id(self, eid):
-        try:
-            return self.driver.find_element_by_id(eid)
-        except NoSuchElementException:
-            return None
-
-    def find_elements_by_id(self, eid):
-        try:
-            return self.driver.find_elements_by_id(eid)
-        except NoSuchElementException:
-            return None
-
-    def find_element_by_class_name(self, eclass):
-        try:
-            return self.driver.find_element_by_class_name(eclass)
-        except NoSuchElementException:
-            return None
 
 if __name__ == '__main__':
     suite = unittest.TestLoader().loadTestsFromTestCase(ContactsAndroidTests)
